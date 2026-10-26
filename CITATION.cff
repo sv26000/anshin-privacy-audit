@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you evaluate or reference Anshin's architectural zero-trust model or privacy benchmarks, please cite it as below."
+authors:
+  - name: "Anshin Wellness Team"
+    website: "https://www.anshinwellness.pro"
+title: "Anshin Open Privacy Audit & Architecture Specification"
+version: 0.1.53
+date-released: 2024-10-26
+url: "https://github.com/sv26000/anshin-privacy-audit"
+repository-code: "https://github.com/sv26000/anshin-privacy-audit"
+keywords:
+  - "privacy audit"
+  - "on-device AI"
+  - "architectural zero-trust"
+  - "Apple Silicon"
+  - "local LLM"
+  - "Qwen 2.5"
+  - "offline wellness"
+  - "CBT"
+license: MIT

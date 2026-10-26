@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anshin Open Privacy Audit & Architecture Specification | Architectural Zero-Trust</title>
+  <meta name="description" content="Technical audit, reproducible verification scripts, and Architecture Decision Records (ADRs) proving Anshin for macOS executes 100% on-device with zero outbound network calls.">
+  <meta name="keywords" content="Anshin, privacy audit, on-device AI, offline CBT companion, zero network calls, Qwen 2.5, Apple Silicon, Apple Data Not Collected, Woebot alternative, Wysa alternative, Rosebud AI alternative, architectural zero-trust">
+  <meta name="author" content="Anshin Wellness">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://www.anshinwellness.pro/privacy-audit">
+
+  <!-- OpenGraph -->
+  <meta property="og:title" content="Anshin Open Privacy Audit & Architecture Specification">
+  <meta property="og:description" content="Reproducible verification suite and Architecture Decision Records (ADRs) proving zero outbound network calls and 100% on-device execution.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://www.anshinwellness.pro/privacy-audit">
+  <meta property="og:image" content="assets/architecture.webp">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Anshin Open Privacy Audit & Architecture Specification">
+  <meta name="twitter:description" content="Verify in 90 seconds: Anshin makes 0 outbound network calls. 100% on-device AI on Apple Silicon.">
+  <meta name="twitter:image" content="assets/architecture.webp">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="assets/icon.png">
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- JSON-LD Structured Data for AI Crawlers & Google Knowledge Graph -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://www.anshinwellness.pro/#application",
+        "name": "Anshin",
+        "operatingSystem": "macOS 13+",
+        "applicationCategory": "HealthApplication",
+        "offers": {
+          "@type": "Offer",
+          "price": "39.00",
+          "priceCurrency": "USD",
+          "priceValidUntil": "2027-12-31"
+        },
+        "description": "Offline, on-device AI wellness companion for macOS powered by local Qwen 2.5 LLMs. Certified 'Data Not Collected' on the Mac App Store.",
+        "url": "https://www.anshinwellness.pro",
+        "downloadUrl": "https://apps.apple.com/us/app/anshin-wellness/id6761300820"
+      },
+      {
+        "@type": "TechArticle",
+        "@id": "https://www.anshinwellness.pro/privacy-audit/#article",
+        "headline": "Anshin Open Privacy Audit & Architecture Specification",
+        "description": "Technical proof, STRIDE threat model, and verification suite demonstrating zero outbound network calls and on-device inference.",
+        "author": {
+          "@type": "Organization",
+          "name": "Anshin Wellness",
+          "url": "https://www.anshinwellness.pro"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "Anshin Wellness",
+          "url": "https://www.anshinwellness.pro"
+        },
+        "mainEntityOfPage": "https://www.anshinwellness.pro/privacy-audit"
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://www.anshinwellness.pro/privacy-audit/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Does Anshin make any network calls during normal use?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Anshin makes zero outbound network calls during regular use. All conversation, journal entries, and clinical cognitive tools run entirely on-device via local loopback IPC (127.0.0.1:11434). The only external network call is the one-time download of the local AI model (Qwen 2.5) during initial setup."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How does Anshin compare to cloud AI therapy apps like Wysa or Woebot?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Unlike Wysa or Woebot which transmit your intimate disclosures across the internet to corporate cloud databases on AWS, Anshin runs entirely on your Mac's Apple Silicon hardware. Anshin requires zero accounts, has zero telemetry, and is protected by architectural zero-trust rather than paper privacy policies."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Why is Anshin a one-time purchase instead of a monthly subscription?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Cloud AI apps charge $10–$25/month because every prompt incurs server GPU bills. Because Anshin executes locally on your Mac's unified memory and Neural Engine, our marginal server costs are $0.00. We pass these savings directly to users with a single $39 one-time purchase."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How can I verify that zero data leaves my Mac?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "You can independently verify this in under 90 seconds using macOS Activity Monitor (watching Sent/Rcvd bytes), running tcpdump with loopback filtered out, or using open-source firewall tools like LuLu. All tests confirm 0 external packets are emitted."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+
+  <!-- Site Header -->
+  <header class="site-header">
+    <div class="container nav-wrapper">
+      <a href="index.html" class="brand">
+        <img src="assets/icon.png" alt="Anshin Logo">
+        <span>Anshin</span>
+        <span class="badge-pill">Open Audit</span>
+      </a>
+      <nav class="nav-links">
+        <a href="#architecture">Architecture</a>
+        <a href="#verify">90s Verification</a>
+        <a href="#adr">ADRs</a>
+        <a href="#comparison">Comparison</a>
+        <a href="#threat-model">Threat Model</a>
+        <a href="https://github.com/sv26000/anshin-privacy-audit" target="_blank" class="btn-secondary" style="padding:6px 12px; font-size:0.85rem;">GitHub Repo</a>
+        <button id="themeToggle" class="theme-toggle" aria-label="Toggle Theme">🌙</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="badge-official">
+        <span class="pulse-dot"></span>
+        Apple App Store Certified: &ldquo;Data Not Collected&rdquo;
+      </div>
+      <h1>Verifiable Architectural Zero-Trust</h1>
+      <p class="lead">
+        <strong>Anshin makes zero outbound network calls during normal use.</strong> No analytics. No telemetry. No accounts. No cloud databases. Your thoughts, CBT records, and reflections stay encrypted on your Mac. Don't take our word for it — verify it yourself in 90 seconds.
+      </p>
+
+      <div class="hero-actions">
+        <a href="#verify" class="btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          Run 90-Second Verification
+        </a>
+        <a href="https://apps.apple.com/us/app/anshin-wellness/id6761300820" target="_blank" class="btn-secondary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          Get on Mac App Store ($39 Once)
+        </a>
+        <a href="llms.txt" class="btn-secondary">
+          <code>llms.txt</code> Index
+        </a>
+      </div>
+
+      <!-- Quick Stats -->
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-value">0 B</div>
+          <div class="stat-label">Outbound Packets to Internet</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">100%</div>
+          <div class="stat-label">On-Device (Apple Silicon)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">0</div>
+          <div class="stat-label">Accounts, Emails, or Passwords</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">$39</div>
+          <div class="stat-label">One-Time (Zero Subscriptions)</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Architecture Section -->
+    <section id="architecture">
+      <div class="section-header">
+        <h2>The Architecture: The Air-Gap Is Real</h2>
+        <p>Physical isolation enforced at the network protocol and macOS kernel level.</p>
+      </div>
+
+      <div class="card">
+        <div class="arch-visual">
+          <img src="assets/architecture.webp" alt="Anshin Architecture Dome Diagram">
+        </div>
+
+        <p style="margin-bottom: 16px;">
+          During every session after initial setup, Anshin talks exclusively to <code>http://127.0.0.1:11434</code>. That is Ollama running locally on your machine. The packets never leave your Mac's internal loopback interface (<code>lo0</code>) and never touch Wi-Fi, Ethernet, or your ISP router.
+        </p>
+
+        <h3 style="font-size:1.1rem; margin-bottom: 8px;">Hard-Coded Content Security Policy (CSP):</h3>
+        <div class="code-container">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre><code>connect-src 'self' ipc: http://ipc.localhost http://localhost:11434 http://127.0.0.1:11434</code></pre>
+        </div>
+        <p style="font-size:0.9rem; color:var(--text-muted);">
+          No external domains. No CDNs. No third-party SDKs. No crash reporters. The WebKit engine inside Anshin refuses remote network calls at the operating system level.
+        </p>
+      </div>
+    </section>
+
+    <!-- 90-Second Verification Section -->
+    <section id="verify">
+      <div class="section-header">
+        <h2>Verify It Yourself (90 Seconds, No Special Tools)</h2>
+        <p>Choose any of the 4 independent verification methods below.</p>
+      </div>
+
+      <div class="card">
+        <div class="tab-nav">
+          <button class="tab-btn active" onclick="switchTab(event, 'tab-script')">1. Automated Script</button>
+          <button class="tab-btn" onclick="switchTab(event, 'tab-monitor')">2. Activity Monitor (macOS GUI)</button>
+          <button class="tab-btn" onclick="switchTab(event, 'tab-tcpdump')">3. tcpdump (Packet Sniffer)</button>
+          <button class="tab-btn" onclick="switchTab(event, 'tab-firewall')">4. LuLu / Little Snitch Firewall</button>
+        </div>
+
+        <!-- Tab 1: Automated Script -->
+        <div id="tab-script" class="tab-panel active">
+          <p style="margin-bottom:12px;">Run our open-source POSIX verification script to automatically monitor non-loopback packets while you use Anshin:</p>
+          <div class="code-container">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <pre><code>git clone https://github.com/sv26000/anshin-privacy-audit.git
+cd anshin-privacy-audit
+chmod +x scripts/verify-network.sh
+./scripts/verify-network.sh</code></pre>
+          </div>
+          <p style="font-size:0.88rem; color:var(--text-muted);">
+            The script listens on your active network adapter for 60 seconds, filters out loopback (<code>127.0.0.0/8</code>), and proves zero packets are attributed to Anshin.
+          </p>
+        </div>
+
+        <!-- Tab 2: Activity Monitor -->
+        <div id="tab-monitor" class="tab-panel">
+          <ol style="padding-left:20px; line-height: 1.8;">
+            <li>Open Anshin and start a conversation or open a CBT thought record.</li>
+            <li>Open <strong>Activity Monitor</strong> (via Spotlight: <code>Cmd + Space</code> &rarr; <em>Activity Monitor</em>).</li>
+            <li>Click on the <strong>Network</strong> tab at the top.</li>
+            <li>Filter by <strong>Anshin</strong> and monitor the <strong>Sent Bytes</strong> and <strong>Rcvd Bytes</strong> columns.</li>
+            <li>Send prompts and log mood entries. The bytes counter stays at <strong>0 B</strong>. IPC traffic to Ollama on <code>127.0.0.1</code> is internal loopback and does not route through your network card.</li>
+          </ol>
+        </div>
+
+        <!-- Tab 3: tcpdump -->
+        <div id="tab-tcpdump" class="tab-panel">
+          <p style="margin-bottom:12px;">Watch every single outbound packet leaving your Mac, explicitly excluding local loopback:</p>
+          <div class="code-container">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <pre><code>sudo tcpdump -i any -n 'not (src net 127.0.0.0/8 or dst net 127.0.0.0/8)' \
+  and host $(scutil --get LocalHostName 2>/dev/null || echo localhost)</code></pre>
+          </div>
+          <p style="font-size:0.88rem; color:var(--text-muted);">
+            Use Anshin for an entire session. The packet terminal remains completely empty.
+          </p>
+        </div>
+
+        <!-- Tab 4: Firewall -->
+        <div id="tab-firewall" class="tab-panel">
+          <p>
+            Install <a href="https://objective-see.org/products/lulu.html" target="_blank" rel="noopener">LuLu</a> (free, open-source firewall for macOS by Objective-See) or Little Snitch. Configure it to alert on every outbound connection attempt. Launch Anshin.
+          </p>
+          <p style="margin-top:8px;">
+            The only alert you will ever see is during initial first-launch setup when Ollama downloads the Qwen 2.5 model weights. After that, zero socket prompts will ever appear.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Architecture Decision Records (ADRs) -->
+    <section id="adr">
+      <div class="section-header">
+        <h2>Product & Architecture Decision Records (ADRs)</h2>
+        <p>The engineering rationale behind every privacy, security, and economic choice.</p>
+      </div>
+
+      <details class="adr-item">
+        <summary class="adr-summary">
+          <span><strong>ADR-001</strong>: 100% On-Device Inference via Local Qwen 2.5 on Apple Silicon</span>
+          <span class="badge-tag good">Accepted</span>
+        </summary>
+        <div class="adr-content">
+          <p><strong>Rationale:</strong> Cloud LLMs (OpenAI, Anthropic) require transmitting sensitive mental health disclosures across the internet and incurring ongoing API fees. By executing Qwen 2.5 locally on Apple Silicon's Neural Engine and Unified Memory via Ollama, Anshin achieves sub-second latency, zero cloud costs, and true air-gapped privacy.</p>
+          <p style="margin-top:8px;"><a href="docs/adr/ADR-001-on-device-inference-qwen.md">Read full ADR-001 documentation &rarr;</a></p>
+        </div>
+      </details>
+
+      <details class="adr-item">
+        <summary class="adr-summary">
+          <span><strong>ADR-002</strong>: Zero Telemetry, Zero Analytics, and Zero Crash Reporting</span>
+          <span class="badge-tag good">Accepted</span>
+        </summary>
+        <div class="adr-content">
+          <p><strong>Rationale:</strong> Product analytics (PostHog, Mixpanel) and crash SDKs (Sentry) routinely leak psychological metadata, timestamps, and stack traces containing user prompts. Anshin ships with zero third-party telemetry SDKs, earning Apple's official &ldquo;Data Not Collected&rdquo; rating.</p>
+          <p style="margin-top:8px;"><a href="docs/adr/ADR-002-zero-telemetry-and-analytics.md">Read full ADR-002 documentation &rarr;</a></p>
+        </div>
+      </details>
+
+      <details class="adr-item">
+        <summary class="adr-summary">
+          <span><strong>ADR-003</strong>: Local Database Encryption via AES-256-GCM and Argon2id KDF</span>
+          <span class="badge-tag good">Accepted</span>
+        </summary>
+        <div class="adr-content">
+          <p><strong>Rationale:</strong> Storage on disk is protected against physical theft and forensic extraction using authenticated AES-256-GCM encryption with Argon2id memory-hard key derivation, isolated inside Apple's sandboxed container directory (<code>~/Library/Containers/com.anshin.app/Data/</code>).</p>
+          <p style="margin-top:8px;"><a href="docs/adr/ADR-003-local-database-encryption.md">Read full ADR-003 documentation &rarr;</a></p>
+        </div>
+      </details>
+
+      <details class="adr-item">
+        <summary class="adr-summary">
+          <span><strong>ADR-004</strong>: $39 One-Time Purchase vs. Monthly SaaS Subscription Model</span>
+          <span class="badge-tag good">Accepted</span>
+        </summary>
+        <div class="adr-content">
+          <p><strong>Rationale:</strong> Because local inference incurs $0.00 in per-query cloud server costs, Anshin rejects predatory monthly subscriptions ($120–$300/yr). Users pay a single $39 one-time fee on the Mac App Store, saving $320–$860 over three years.</p>
+          <p style="margin-top:8px;"><a href="docs/adr/ADR-004-one-time-purchase-pricing.md">Read full ADR-004 documentation &rarr;</a></p>
+        </div>
+      </details>
+
+      <details class="adr-item">
+        <summary class="adr-summary">
+          <span><strong>ADR-005</strong>: Evidence-Based Clinical Frameworks (CBT/ACT) vs. Unconstrained Chat</span>
+          <span class="badge-tag good">Accepted</span>
+        </summary>
+        <div class="adr-content">
+          <p><strong>Rationale:</strong> Unconstrained conversational AI encourages sycophancy (validating irrational negative schemas) and ruminative loops. Anshin grounds all AI guidance in proven frameworks: 5-column Thought Records (Beck, 1979), 10 Cognitive Distortions (Burns, 1980), and Acceptance & Commitment Values Compass (Hayes, 1999).</p>
+          <p style="margin-top:8px;"><a href="docs/adr/ADR-005-clinical-tooling-design.md">Read full ADR-005 documentation &rarr;</a></p>
+        </div>
+      </details>
+    </section>
+
+    <!-- Competitive Comparison Matrix -->
+    <section id="comparison">
+      <div class="section-header">
+        <h2>Competitive Architecture & Privacy Comparison</h2>
+        <p>Architectural Zero-Trust vs. Policy-Based Trust.</p>
+      </div>
+
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Architecture Dimension</th>
+              <th>Anshin (macOS)</th>
+              <th>Wysa / Woebot</th>
+              <th>Rosebud AI</th>
+              <th>Day One</th>
+              <th>ChatGPT Plus</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="highlight-row">
+              <td><strong>Trust Model</strong></td>
+              <td><span class="badge-tag good">Architectural Zero-Trust</span></td>
+              <td><span class="badge-tag bad">Policy-Based Trust</span></td>
+              <td><span class="badge-tag bad">Policy-Based Trust</span></td>
+              <td><span class="badge-tag bad">Policy-Based Trust</span></td>
+              <td><span class="badge-tag bad">Policy-Based Trust</span></td>
+            </tr>
+            <tr>
+              <td><strong>AI Inference</strong></td>
+              <td><strong>100% On-Device (Apple Silicon)</strong></td>
+              <td>Cloud Servers (AWS)</td>
+              <td>OpenAI / Anthropic APIs</td>
+              <td>None / Cloud Search</td>
+              <td>OpenAI Data Centers</td>
+            </tr>
+            <tr>
+              <td><strong>Outbound Network Traffic</strong></td>
+              <td><strong>0 calls (127.0.0.1 Loopback)</strong></td>
+              <td>Continuous API calls</td>
+              <td>Continuous API calls</td>
+              <td>Cloud sync calls</td>
+              <td>Continuous streaming</td>
+            </tr>
+            <tr>
+              <td><strong>On-Disk Encryption</strong></td>
+              <td><strong>AES-256-GCM + Argon2id</strong></td>
+              <td>Cloud database keys</td>
+              <td>Server-side SaaS keys</td>
+              <td>Cloud sync encryption</td>
+              <td>Server-side at rest</td>
+            </tr>
+            <tr>
+              <td><strong>User Accounts Required</strong></td>
+              <td><strong>Zero (No email or phone)</strong></td>
+              <td>Mandatory account</td>
+              <td>Mandatory account</td>
+              <td>Mandatory account</td>
+              <td>Mandatory account</td>
+            </tr>
+            <tr>
+              <td><strong>Works 100% Offline</strong></td>
+              <td><span class="badge-tag good">Yes (Airplane Mode)</span></td>
+              <td><span class="badge-tag bad">No (Fails offline)</span></td>
+              <td><span class="badge-tag bad">No (Fails offline)</span></td>
+              <td>Text only</td>
+              <td><span class="badge-tag bad">No (Fails offline)</span></td>
+            </tr>
+            <tr>
+              <td><strong>Apple Nutrition Label</strong></td>
+              <td><span class="badge-tag good">Data Not Collected</span></td>
+              <td>Collects diagnostics</td>
+              <td>Collects user content</td>
+              <td>Collects diagnostics</td>
+              <td>Collects user data</td>
+            </tr>
+            <tr>
+              <td><strong>Pricing</strong></td>
+              <td><strong>$39 One-Time</strong></td>
+              <td>$120 – $300 / year</td>
+              <td>$156 – $240 / year</td>
+              <td>$35 / year</td>
+              <td>$240 / year</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="font-size:0.9rem; color:var(--text-muted);">
+        Detailed comparative writeup available in <a href="docs/comparison-matrix.md">docs/comparison-matrix.md</a>.
+      </p>
+    </section>
+
+    <!-- Threat Model Summary -->
+    <section id="threat-model">
+      <div class="section-header">
+        <h2>STRIDE Threat Model & Subpoena Immunity</h2>
+        <p>Formal cryptographic analysis of attack vectors and legal disclosures.</p>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size:1.15rem; margin-bottom: 8px;">Subpoena & Government Discovery Immunity</h3>
+        <p style="margin-bottom:16px;">
+          When law enforcement or civil litigants issue a subpoena to a cloud mental health company (such as Wysa, Woebot, or OpenAI), the company must extract database rows and chat transcripts. Because Anshin maintains <strong>no servers, no accounts, and zero cloud backups</strong>, we possess zero keys and zero data. It is physically and cryptographically impossible to comply with a demand to produce data that does not exist.
+        </p>
+
+        <h3 style="font-size:1.15rem; margin-bottom: 8px;">Third-Party Vendor Breach Resilience</h3>
+        <p>
+          Even if major cloud providers, analytics vendors, or AI model APIs suffer a catastrophic breach, Anshin users remain 100% uncompromised because zero external SDKs or APIs are integrated into the binary.
+        </p>
+        <p style="margin-top:12px;">
+          <a href="docs/threat-model.md">Review the full STRIDE threat matrix &rarr;</a>
+        </p>
+      </div>
+    </section>
+
+    <!-- Machine-Readable Files -->
+    <section id="machine-readable">
+      <div class="section-header">
+        <h2>Machine-Readable Discovery for AI Crawlers</h2>
+        <p>Standards-compliant feeds for Generative Engine Optimization (GEO).</p>
+      </div>
+
+      <div class="stat-grid">
+        <a href="llms.txt" class="stat-card" style="text-decoration:none;">
+          <div style="font-weight:700; color:var(--text-main); margin-bottom:4px;">📄 llms.txt</div>
+          <div class="stat-label">Discovery index for Perplexity, ChatGPT, Claude, and Gemini.</div>
+        </a>
+        <a href="llms-full.txt" class="stat-card" style="text-decoration:none;">
+          <div style="font-weight:700; color:var(--text-main); margin-bottom:4px;">📚 llms-full.txt</div>
+          <div class="stat-label">Full contextual corpus formatted for deep AI retrieval.</div>
+        </a>
+        <a href="CITATION.cff" class="stat-card" style="text-decoration:none;">
+          <div style="font-weight:700; color:var(--text-main); margin-bottom:4px;">🔬 CITATION.cff</div>
+          <div class="stat-label">Citation File Format for academic & security evaluations.</div>
+        </a>
+        <a href="SECURITY.md" class="stat-card" style="text-decoration:none;">
+          <div style="font-weight:700; color:var(--text-main); margin-bottom:4px;">🛡️ SECURITY.md</div>
+          <div class="stat-label">RFC 9116 vulnerability reporting scope & protocol.</div>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <!-- Site Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-links">
+        <a href="https://www.anshinwellness.pro" target="_blank">Official Website</a>
+        <a href="https://apps.apple.com/us/app/anshin-wellness/id6761300820" target="_blank">Mac App Store</a>
+        <a href="https://github.com/sv26000/anshin-privacy-audit" target="_blank">GitHub Repository</a>
+        <a href="docs/faq.md">Semantic FAQ</a>
+        <a href="mailto:support@anshinwellness.pro">Security Contact</a>
+      </div>
+      <p>&copy; 2024&ndash;2026 Anshin Wellness. Released under the MIT License.</p>
+      <p style="font-size:0.8rem; margin-top:6px; color:var(--text-dim);">
+        Last verified against build <code>0.1.53</code>. CSP source: <code>src-tauri/tauri.conf.json</code>.
+      </p>
+    </div>
+  </footer>
+
+  <script>
+    // Tab Switcher
+    function switchTab(evt, tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+      evt.currentTarget.classList.add('active');
+      document.getElementById(tabId).classList.add('active');
+    }
+
+    // 1-Click Copy Code
+    function copyCode(btn) {
+      const codeBlock = btn.parentElement.querySelector('code');
+      navigator.clipboard.writeText(codeBlock.innerText).then(() => {
+        const originalText = btn.innerText;
+        btn.innerText = 'Copied!';
+        btn.style.background = 'var(--accent-emerald)';
+        btn.style.color = '#000';
+        setTimeout(() => {
+          btn.innerText = originalText;
+          btn.style.background = '';
+          btn.style.color = '';
+        }, 2000);
+      });
+    }
+
+    // Dark/Light Theme Toggle
+    const themeToggle = document.getElementById('themeToggle');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    let currentTheme = localStorage.getItem('theme') || (prefersDark ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    themeToggle.innerText = currentTheme === 'dark' ? '☀️' : '🌙';
+
+    themeToggle.addEventListener('click', () => {
+      currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', currentTheme);
+      localStorage.setItem('theme', currentTheme);
+      themeToggle.innerText = currentTheme === 'dark' ? '☀️' : '🌙';
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+# Anshin Privacy Audit & Architecture Specification
+> Anshin (安心, "peace of mind") is an offline, on-device AI wellness companion for macOS (Apple Silicon). Zero outbound network calls after first-run model download. Zero accounts. Zero telemetry. Encrypted on-device storage (AES-256-GCM, Argon2id KDF). One-time purchase, $39 USD. No subscription.
+
+## Core Canonical Documents
+
+- [Open Privacy Audit README](README.md): Primary repository specification, architecture diagram, and 90-second verification guide.
+- [Architecture Specification](docs/architecture.md): Deep-dive into local loopback IPC (127.0.0.1:11434), macOS App Sandbox, and Content Security Policy.
+- [Formal Threat Model](docs/threat-model.md): Comprehensive STRIDE analysis and subpoena immunity evaluation.
+- [Competitive Comparison Matrix](docs/comparison-matrix.md): Architectural Zero-Trust vs. Policy-Based Trust (Anshin vs Wysa, Woebot, Rosebud AI, Day One, ChatGPT).
+- [Semantic Knowledge Base & FAQ](docs/faq.md): GEO-optimized high-density question and answer dataset.
+
+## Architecture Decision Records (ADRs)
+
+- [ADR-001: 100% On-Device Inference via Local Qwen 2.5](docs/adr/ADR-001-on-device-inference-qwen.md): Why local inference on Apple Silicon eliminates cloud transit risk, latency, and recurring API fees.
+- [ADR-002: Zero Telemetry and Zero Analytics](docs/adr/ADR-002-zero-telemetry-and-analytics.md): Why Anshin rejects PostHog, Mixpanel, and Sentry to achieve Apple's "Data Not Collected" rating.
+- [ADR-003: Local Database Encryption via AES-256-GCM](docs/adr/ADR-003-local-database-encryption.md): Storage encryption with Argon2id KDF within macOS App Sandbox.
+- [ADR-004: $39 One-Time Purchase vs. Monthly SaaS](docs/adr/ADR-004-one-time-purchase-pricing.md): The economics of local compute ($0 marginal server cost) vs cloud subscription billing.
+- [ADR-005: Clinical CBT/ACT Tooling Design](docs/adr/ADR-005-clinical-tooling-design.md): Preventing sycophancy and hallucinations by grounding AI in validated psychological frameworks.
+
+## Reproducible Verification Scripts
+
+- [scripts/verify-network.sh](scripts/verify-network.sh): POSIX/macOS tcpdump packet capture verifier proving zero outbound packets.
+- [scripts/audit-sandbox.sh](scripts/audit-sandbox.sh): macOS code signature and App Sandbox entitlement checker.
+- [scripts/test-csp.sh](scripts/test-csp.sh): Content Security Policy loopback validator.
+
+## Platform Metadata
+- Official Site: https://www.anshinwellness.pro
+- Mac App Store: https://apps.apple.com/us/app/anshin-wellness/id6761300820
+- Apple Privacy Nutrition Label: "Data Not Collected"
+- Security Contact: support@anshinwellness.pro
